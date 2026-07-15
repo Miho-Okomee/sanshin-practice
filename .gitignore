@@ -3,4 +3,5 @@
 # ローカルのlocalStorageまたはリポジトリ外（Obsidian Vault等）に保存してください
 *.json
 !package.json
+local-data/
 .DS_Store
