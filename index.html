@@ -122,6 +122,9 @@
 
   .hint { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
   .mode-note { font-size: 0.8rem; color: var(--accent); margin-bottom: 8px; }
+
+  #youtubeContainer { position: relative; width: 100%; padding-top: 56.25%; }
+  #youtubePlayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 8px; overflow: hidden; }
 </style>
 </head>
 <body>
@@ -137,7 +140,16 @@
       <button id="modeManual">手動モード</button>
       <button id="modeEdit">入力・編集モード</button>
     </div>
+    <div class="controls">
+      <label style="flex:1;min-width:200px;">YouTube：
+        <input type="text" id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..." style="width:calc(100% - 70px);">
+      </label>
+      <button id="youtubeLoadBtn">読み込む</button>
+    </div>
     <audio id="player" controls></audio>
+    <div id="youtubeContainer" style="display:none;margin-top:8px;">
+      <div id="youtubePlayer"></div>
+    </div>
     <div class="hint" id="modeHint"></div>
   </div>
 
@@ -175,5 +187,6 @@
 
   <script src="songs.js"></script>
   <script src="app.js"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
 </body>
 </html>

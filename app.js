@@ -39,7 +39,88 @@ const el = {
   addNoteBtn: document.getElementById("addNoteBtn"),
   exportBtn: document.getElementById("exportBtn"),
   importFile: document.getElementById("importFile"),
+  youtubeUrl: document.getElementById("youtubeUrl"),
+  youtubeLoadBtn: document.getElementById("youtubeLoadBtn"),
+  youtubeContainer: document.getElementById("youtubeContainer"),
 };
+
+// --- YouTube連携 ---
+// YouTube公式のIFrame Player APIを使って埋め込む（動画のダウンロード・保存は一切行わない）
+let ytPlayer = null;
+let ytApiReady = false;
+let ytActive = false;
+let ytPollTimer = null;
+
+function extractYouTubeId(url) {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=)([\w-]{11})/,
+    /(?:youtu\.be\/)([\w-]{11})/,
+    /(?:youtube\.com\/embed\/)([\w-]{11})/,
+  ];
+  for (const re of patterns) {
+    const m = url.match(re);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+window.onYouTubeIframeAPIReady = function () {
+  ytApiReady = true;
+};
+
+function loadYouTubeVideo(url) {
+  const videoId = extractYouTubeId(url);
+  if (!videoId) {
+    alert("YouTubeのURLから動画IDを読み取れなかったやんす。URLを確認してほしいやんす。");
+    return;
+  }
+  el.player.pause();
+  ytActive = true;
+  el.youtubeContainer.style.display = "block";
+
+  const create = () => {
+    if (ytPlayer) {
+      ytPlayer.loadVideoById(videoId);
+    } else {
+      ytPlayer = new YT.Player("youtubePlayer", {
+        videoId: videoId,
+        playerVars: { playsinline: 1 },
+      });
+    }
+  };
+  if (ytApiReady && window.YT && window.YT.Player) {
+    create();
+  } else {
+    const check = setInterval(() => {
+      if (ytApiReady && window.YT && window.YT.Player) {
+        clearInterval(check);
+        create();
+      }
+    }, 200);
+  }
+}
+
+el.youtubeLoadBtn.addEventListener("click", () => {
+  const url = el.youtubeUrl.value.trim();
+  if (url) loadYouTubeVideo(url);
+});
+
+function getCurrentTime() {
+  if (ytActive && ytPlayer && typeof ytPlayer.getCurrentTime === "function") {
+    return ytPlayer.getCurrentTime();
+  }
+  return el.player.currentTime;
+}
+
+function pollYouTubeTime() {
+  if (ytActive && ytPlayer && state.mode === "play" && typeof ytPlayer.getPlayerState === "function") {
+    if (ytPlayer.getPlayerState() === 1 /* YT.PlayerState.PLAYING */) {
+      updateHighlightForTime(getCurrentTime());
+    }
+  }
+  ytPollTimer = requestAnimationFrame(pollYouTubeTime);
+}
+pollYouTubeTime();
 
 function loadNotesForSong(key) {
   const saved = localStorage.getItem("sanshin-" + key);
@@ -82,6 +163,8 @@ el.songSelect.addEventListener("change", () => {
 el.audioFile.addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (file) {
+    ytActive = false;
+    el.youtubeContainer.style.display = "none";
     el.player.src = URL.createObjectURL(file);
   }
 });
@@ -123,10 +206,8 @@ el.nextBtn.addEventListener("click", () => {
   renderHighlight();
 });
 
-el.player.addEventListener("timeupdate", () => {
-  if (state.mode !== "play") return;
+function updateHighlightForTime(t) {
   const notes = currentNotes();
-  const t = el.player.currentTime;
   let idx = -1;
   for (let i = 0; i < notes.length; i++) {
     if (notes[i].t !== null && notes[i].t <= t) idx = i;
@@ -135,6 +216,11 @@ el.player.addEventListener("timeupdate", () => {
     state.currentIndex = idx;
     renderHighlight();
   }
+}
+
+el.player.addEventListener("timeupdate", () => {
+  if (state.mode !== "play" || ytActive) return;
+  updateHighlightForTime(el.player.currentTime);
 });
 
 function renderTracks() {
@@ -300,7 +386,7 @@ function renderEditTable() {
     const tapRowBtn = document.createElement("button");
     tapRowBtn.textContent = "このタイミングで記録";
     tapRowBtn.addEventListener("click", () => {
-      n.t = el.player.currentTime;
+      n.t = getCurrentTime();
       saveNotesForSong(state.songKey);
       renderEditTable();
     });
@@ -335,7 +421,7 @@ function tapTiming() {
     alert("全部の音にタイミングを記録し終わったやんす。「＋音符を追加」で増やせるやんす。");
     return;
   }
-  notes[state.tapIndex].t = el.player.currentTime;
+  notes[state.tapIndex].t = getCurrentTime();
   state.tapIndex++;
   state.currentIndex = Math.min(state.tapIndex, notes.length - 1);
   saveNotesForSong(state.songKey);
