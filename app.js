@@ -1,5 +1,15 @@
 const STRING_NAMES = ["男弦", "中弦", "女弦"];
 const FRET_COUNT = 5; // 0=開放, 1〜4=勘所
+// 工工四の文字（本調子早見表で確認済みの範囲のみ。4番目の勘所は未確認のため空欄）
+const KUNKUNSHI_LABELS = {
+  1: ["合", "乙", "老", "四", ""],
+  2: ["四", "上", "中", "尺", ""],
+  3: ["工", "五", "六", "七", ""],
+};
+function fretLabel(string, fret) {
+  const label = KUNKUNSHI_LABELS[string] && KUNKUNSHI_LABELS[string][fret];
+  return label || (fret === 0 ? "開" : String(fret));
+}
 
 let state = {
   songKey: null,
@@ -172,7 +182,7 @@ function renderStrings() {
       dot.className = "fret-dot";
       dot.dataset.string = sIdx + 1;
       dot.dataset.fret = f;
-      dot.textContent = f === 0 ? "開" : f;
+      dot.textContent = fretLabel(sIdx + 1, f);
       line.appendChild(dot);
     }
     row.appendChild(line);
@@ -258,6 +268,7 @@ function renderEditTable() {
     stringSelect.addEventListener("change", () => {
       n.string = Number(stringSelect.value);
       saveNotesForSong(state.songKey);
+      renderEditTable();
       renderHighlight();
     });
     stringTd.appendChild(stringSelect);
@@ -268,7 +279,8 @@ function renderEditTable() {
     for (let f = 0; f < FRET_COUNT; f++) {
       const opt = document.createElement("option");
       opt.value = f;
-      opt.textContent = f === 0 ? "開放" : f;
+      const kanji = fretLabel(n.string, f);
+      opt.textContent = f === 0 ? `開放（${kanji}）` : kanji;
       if (Number(n.fret) === f) opt.selected = true;
       fretSelect.appendChild(opt);
     }
