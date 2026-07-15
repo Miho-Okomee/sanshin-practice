@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三線練習アプリ</title>
+<meta name="description" content="歌詞・工工四・弦を押さえる場所を3段で表示し、音源に合わせてハイライトが進む三線の個人練習用Webアプリ。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://miho-okomee.github.io/sanshin-practice/">
+<meta property="og:site_name" content="三線練習アプリ">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="三線練習アプリ｜歌詞・工工四・弦位置を3段で確認">
+<meta property="og:description" content="歌詞・工工四・弦を押さえる場所を3段で表示し、音源に合わせてハイライトが進む三線の個人練習用Webアプリ。">
+<meta property="og:image" content="https://miho-okomee.github.io/sanshin-practice/ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="三線練習アプリ 歌詞・工工四・弦位置を3段で確認">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="三線練習アプリ｜歌詞・工工四・弦位置を3段で確認">
+<meta name="twitter:description" content="歌詞・工工四・弦を押さえる場所を3段で表示し、音源に合わせてハイライトが進む三線の個人練習用Webアプリ。">
+<meta name="twitter:image" content="https://miho-okomee.github.io/sanshin-practice/ogp.png">
+<style>
+  :root {
+    --bg: #1b1512;
+    --panel: #2a221c;
+    --accent: #e8b04b;
+    --accent2: #d1603d;
+    --text: #f2e9dc;
+    --muted: #a89584;
+    --string-line: #6b5847;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 16px;
+  }
+  h1 { font-size: 1.2rem; margin: 0 0 12px; }
+  .panel {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+  select, button, input[type=file] {
+    background: #3a2f27;
+    color: var(--text);
+    border: 1px solid var(--string-line);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.9rem;
+  }
+  button { cursor: pointer; }
+  button.active { background: var(--accent); color: #1b1512; }
+  audio { width: 100%; margin-top: 8px; }
+
+  .row-label { font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; }
+  .track {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 8px 4px;
+    scroll-behavior: smooth;
+  }
+  .note-cell {
+    min-width: 40px;
+    text-align: center;
+    padding: 6px 4px;
+    border-radius: 6px;
+    color: var(--muted);
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .note-cell.current {
+    background: var(--accent);
+    color: #1b1512;
+    font-weight: bold;
+  }
+  .lyric-cell { font-size: 1.1rem; }
+  .kunkunshi-cell { font-size: 1.3rem; }
+
+  .strings {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 16px 8px;
+  }
+  .string-row { display: flex; align-items: center; gap: 10px; }
+  .string-name { width: 56px; font-size: 0.8rem; color: var(--muted); flex-shrink: 0; }
+  .string-line {
+    flex: 1;
+    position: relative;
+    height: 2px;
+    background: var(--string-line);
+    display: flex;
+    justify-content: space-between;
+  }
+  .fret-dot {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #3a2f27;
+    border: 2px solid var(--string-line);
+    transform: translateY(-10px);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.65rem;
+    color: var(--muted);
+  }
+  .fret-dot.active {
+    background: var(--accent2);
+    border-color: var(--accent2);
+    color: #fff;
+    box-shadow: 0 0 12px var(--accent2);
+  }
+
+  .edit-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .edit-table th, .edit-table td { border: 1px solid var(--string-line); padding: 4px; text-align: center; }
+  .edit-table input, .edit-table select { width: 100%; }
+  .edit-table tr.current td { background: #3a2f27; }
+
+  .hint { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+  .mode-note { font-size: 0.8rem; color: var(--accent); margin-bottom: 8px; }
+</style>
+</head>
+<body>
+  <h1>🎶 三線練習アプリ（枠組み版）</h1>
+
+  <div class="panel">
+    <div class="controls">
+      <label>曲：
+        <select id="songSelect"></select>
+      </label>
+      <label>音源：<input type="file" id="audioFile" accept="audio/*"></label>
+      <button id="modePlay" class="active">再生モード</button>
+      <button id="modeManual">手動モード</button>
+      <button id="modeEdit">入力・編集モード</button>
+    </div>
+    <audio id="player" controls></audio>
+    <div class="hint" id="modeHint"></div>
+  </div>
+
+  <div class="panel">
+    <div class="row-label">歌詞</div>
+    <div class="track" id="lyricTrack"></div>
+    <div class="row-label">工工四</div>
+    <div class="track" id="kunkunshiTrack"></div>
+    <div class="row-label">弦を押さえる場所</div>
+    <div class="strings" id="strings"></div>
+    <div class="controls" id="manualControls" style="display:none;">
+      <button id="prevBtn">◀ 前へ</button>
+      <span id="posIndicator" class="hint"></span>
+      <button id="nextBtn">次へ ▶</button>
+    </div>
+  </div>
+
+  <div class="panel" id="editPanel" style="display:none;">
+    <div class="mode-note">
+      再生しながら「今ココ」ボタン（またはスペースキー）を押すと、そのタイミングを記録するやんす。歌詞・工工四のテキストは各行で直接編集できるやんす。
+    </div>
+    <div class="controls">
+      <button id="tapBtn">👆 今ココ（タイミング記録）</button>
+      <button id="addNoteBtn">＋ 音符を追加</button>
+      <button id="exportBtn">📥 JSONを書き出す</button>
+      <label>📤 JSONを読み込む：<input type="file" id="importFile" accept=".json"></label>
+    </div>
+    <table class="edit-table">
+      <thead>
+        <tr><th>#</th><th>歌詞</th><th>工工四</th><th>弦</th><th>位置</th><th>タイミング(秒)</th><th>操作</th></tr>
+      </thead>
+      <tbody id="editBody"></tbody>
+    </table>
+  </div>
+
+  <script src="songs.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
